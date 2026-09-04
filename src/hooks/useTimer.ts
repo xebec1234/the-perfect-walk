@@ -6,7 +6,9 @@ export function useTimer(initialSeconds: number, onComplete?: () => void) {
   const [remainingSeconds, setRemainingSeconds] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(false);
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -26,10 +28,20 @@ export function useTimer(initialSeconds: number, onComplete?: () => void) {
 
   const start = useCallback(() => setIsRunning(true), []);
   const pause = useCallback(() => setIsRunning(false), []);
-  const reset = useCallback((seconds = initialSeconds) => {
-    setIsRunning(false);
-    setRemainingSeconds(seconds);
-  }, [initialSeconds]);
+  const reset = useCallback(
+    (seconds = initialSeconds) => {
+      setIsRunning(false);
+      setRemainingSeconds(seconds);
+    },
+    [initialSeconds],
+  );
 
-  return { remainingSeconds, isRunning, start, pause, reset, setRemainingSeconds };
+  return {
+    remainingSeconds,
+    isRunning,
+    start,
+    pause,
+    reset,
+    setRemainingSeconds,
+  };
 }
