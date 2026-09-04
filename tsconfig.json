@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "../../../../admin/Downloads/the-perfect-walk-starter/src/data/stages.ts"  ],
   "exclude": ["node_modules"]
 }

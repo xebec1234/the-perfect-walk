@@ -1,0 +1,14 @@
+{
+  "name": "The Perfect Walk",
+  "short_name": "Perfect Walk",
+  "description": "A five-part morning walking practice.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f0df",
+  "theme_color": "#f7edda",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
