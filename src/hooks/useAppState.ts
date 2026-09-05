@@ -33,7 +33,7 @@ function subscribe(callback: () => void) {
   };
 
   const handleStorageChange = (event: StorageEvent) => {
-    if (event.key === "perfect-walk-state") {
+    if (event.key === "the-perfect-walk:v1") {
       cachedState = loadAppState();
       callback();
     }

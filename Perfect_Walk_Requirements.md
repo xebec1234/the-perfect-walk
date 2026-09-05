@@ -3352,3 +3352,13 @@ The goal is not to build the biggest app.
 
 The goal is to build the **smallest, most intentional version that makes
 Elliot say: "Yes --- this understands Perfect Walk."**
+
+
+| Stage              | Day 1  | Day 7     | Day 30       | Day 60      |
+| ------------------ | ------ | --------- | ------------ | ----------- |
+| Opening Your Heart | Guided | Short cue | Minimal      | Optional    |
+| Feeling Your Power | Guided | Short cue | Minimal      | Optional    |
+| Letting Go         | Guided | Short cue | Very minimal | Almost none |
+| Higher Power       | Guided | Short cue | Minimal      | Optional    |
+| Celebrate          | Guided | Short cue | Short cue    | Short cue   |
+
