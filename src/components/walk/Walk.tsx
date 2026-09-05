@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
@@ -10,20 +10,16 @@ import { useWalk } from "@/hooks/useWalk";
 import Link from "next/link";
 
 function formatTime(seconds: number) {
-  const minutes = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0");
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
 
-  const secs = (seconds % 60).toString().padStart(2, "0");
-
-  return `${minutes}:${secs}`;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
 export function Walk() {
   const { state, completeWalk } = useAppState();
   const router = useRouter();
-
-  const [showSupport, setShowSupport] = useState(false);
 
   const order = state?.selectedOrder ?? [
     "opening-heart",
@@ -39,12 +35,6 @@ export function Walk() {
     completeWalk,
   );
 
-  const progress = walk.stage
-    ? ((walk.stage.durationSeconds - walk.remainingSeconds) /
-        walk.stage.durationSeconds) *
-      100
-    : 0;
-
   useEffect(() => {
     if (walk.completed) {
       router.replace("/complete");
@@ -55,7 +45,14 @@ export function Walk() {
     return null;
   }
 
-  const guidance = walk.guidance;
+  const progress =
+    walk.stage.durationSeconds > 0
+      ? ((walk.stage.durationSeconds - walk.remainingSeconds) /
+          walk.stage.durationSeconds) *
+        100
+      : 0;
+
+  const isEmbodied = walk.guidanceMode === "embody";
 
   return (
     <main className="screen walk-screen">
@@ -87,72 +84,70 @@ export function Walk() {
         </div>
       </div>
 
-      <section className="walk-guidance" aria-live="polite">
-        {guidance?.intro && (
-          <p className="walk-guidance-intro">{guidance.intro}</p>
-        )}
+      {!isEmbodied && (
+        <section className="walk-guidance" aria-live="polite">
+          {walk.guidance?.intro && (
+            <p className="walk-guidance-intro">{walk.guidance.intro}</p>
+          )}
 
-        {guidance?.anchor && <p className="walk-prompt">{guidance.anchor}</p>}
+          {walk.guidance?.anchor && (
+            <p className="walk-prompt">{walk.guidance.anchor}</p>
+          )}
 
-        {showSupport && (
-          <div className="walk-support">
-            <p>{walk.stage.prompt}</p>
-          </div>
-        )}
-      </section>
+          {walk.showSupport && (
+            <div className="walk-support">
+              <p>{walk.stage.prompt}</p>
+            </div>
+          )}
+        </section>
+      )}
 
-      <button
-        className="quiet-button"
-        onClick={() => setShowSupport((current) => !current)}
-        aria-expanded={showSupport}
-      >
-        {showSupport ? "Hide guidance" : "Guide me"}
-      </button>
+      {!isEmbodied && (
+        <button
+          className="quiet-button"
+          onClick={() => walk.setShowSupport((current) => !current)}
+          aria-expanded={walk.showSupport}
+        >
+          {walk.showSupport ? "Hide guidance" : "Guide me"}
+        </button>
+      )}
 
       <div className="player-card">
-        <div className="audio-art">
-          <div className="audio-dot" />
+        <div className="player-info">
+          <span className="player-icon">
+            {walk.isPlaying ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </span>
+
+          <span>
+            <strong>Music for this part</strong>
+            <small>{walk.isPlaying ? "Playing" : "Paused"}</small>
+          </span>
         </div>
 
-        <div className="audio-copy">
-          <strong>
-            {walk.isPlaying ? "Gentle Breeze" : "Ready when you are"}
-          </strong>
-
-          <small>
-            {walk.stage.title} · {formatTime(walk.remainingSeconds)}
-          </small>
-        </div>
-
-        <button
-          className="audio-button"
-          onClick={() =>
-            walk.isPlaying
-              ? walk.pause()
-              : walk.started
-                ? walk.resume()
-                : walk.start()
-          }
-          aria-label={walk.isPlaying ? "Pause" : "Play"}
-        >
-          {walk.isPlaying ? (
-            <Pause size={18} fill="currentColor" />
-          ) : (
-            <Play size={18} fill="currentColor" />
-          )}
-        </button>
+        {walk.started && (
+          <button
+            className="icon-button"
+            onClick={walk.isPaused ? walk.resume : walk.pause}
+            aria-label={walk.isPaused ? "Resume audio" : "Pause audio"}
+          >
+            {walk.isPaused ? (
+              <Play size={17} fill="currentColor" />
+            ) : (
+              <Pause size={17} fill="currentColor" />
+            )}
+          </button>
+        )}
       </div>
 
       {walk.audioError && (
-        <p className="audio-warning">
-          <VolumeX size={15} />
-          Audio could not start. The timer still works.
+        <p className="walk-audio-error" role="status">
+          Audio could not start. You can continue walking without it.
         </p>
       )}
 
       {!walk.started && (
         <button className="primary-button" onClick={walk.start}>
-          <Play size={18} fill="currentColor" />
+          <Play size={17} fill="currentColor" />
           Begin this part
         </button>
       )}
@@ -175,8 +170,8 @@ export function Walk() {
       )}
 
       <div className="walk-footer-note">
-        <Volume2 size={14} />
-        Put your phone in your pocket when you&apos;re ready.
+        <Volume2 size={15} />
+        <span>Put your phone in your pocket when you&#39re ready.</span>
       </div>
     </main>
   );

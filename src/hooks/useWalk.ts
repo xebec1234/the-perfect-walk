@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getStages } from "@/data/stages";
 import { getGuidanceMode } from "@/lib/guidance";
-
 import type { StageId } from "@/types/stage";
 
 import { useAudio } from "./useAudio";
@@ -20,46 +19,97 @@ export function useWalk(
 
   const { state } = useAppState();
 
-  const guidanceMode = getGuidanceMode(state.streak.totalCompleted);
+  // const totalCompleted =
+  //   state?.streak.totalCompleted ?? 0;
+
+  // const guidanceMode =
+  //   getGuidanceMode(totalCompleted);
+
+  const realTotalCompleted = state?.streak.totalCompleted ?? 0;
+
+  // TEMPORARY TEST OVERRIDE
+  // Change this number to test each guidance stage.
+  // 0-1  = discover
+  // 2-7  = remember
+  // 8-30 = trust
+  // 31+  = embody
+  const testTotalCompleted = 60;
+
+  const totalCompleted =
+    process.env.NODE_ENV === "development"
+      ? testTotalCompleted
+      : realTotalCompleted;
+
+  const guidanceMode = getGuidanceMode(totalCompleted);
+
+  const shouldPlayVoice =
+    guidanceMode === "discover" || guidanceMode === "remember";
 
   const [stageIndex, setStageIndex] = useState(0);
   const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [supportStageIndex, setSupportStageIndex] = useState<number | null>(
+    null,
+  );
 
   const audio = useAudio();
-
-  const timer = useTimer(
-    stages[stageIndex]?.durationSeconds ?? 0,
-    () => {
-      if (stageIndex < stages.length - 1) {
-        setStageIndex((current) => current + 1);
-      } else {
-        setCompleted(true);
-        setStarted(false);
-        audio.stop();
-        onComplete?.();
-      }
-    },
-  );
 
   const stage = stages[stageIndex];
 
   const guidance = stage?.guidance[guidanceMode];
 
+  const timer = useTimer(stage?.durationSeconds ?? 0, () => {
+    if (stageIndex < stages.length - 1) {
+      setStageIndex((current) => current + 1);
+    } else {
+      setCompleted(true);
+      setStarted(false);
+      audio.stop();
+      onComplete?.();
+    }
+  });
+
+  // TEMPORARY TIMER DEBUGGING
+  useEffect(() => {}, [stageIndex, stage]);
+
+  useEffect(() => {}, [
+    stageIndex,
+    stage?.title,
+    timer.remainingSeconds,
+    timer.isRunning,
+  ]);
+
+  const showSupport =
+    !(guidanceMode === "embody") && supportStageIndex === stageIndex;
+
   useEffect(() => {
-    timer.reset(stage?.durationSeconds ?? 0);
-
-    if (started && stage) {
-      void audio.play(
-        stage.musicSrc,
-        stage.voiceIntroSrc,
-        volume,
-      );
-
-      timer.start();
+    if (!stage) {
+      return;
     }
 
-    // We intentionally respond only to stage changes.
+    timer.reset(stage.durationSeconds);
+
+    if (started) {
+      timer.start();
+
+      void audio.play(
+        stage.musicSrc,
+        shouldPlayVoice ? stage.voiceIntroSrc : undefined,
+        volume,
+      );
+    }
+
+    console.log("🚶 PERFECT WALK — STAGE", {
+      stageNumber: stage.number,
+      stageTitle: stage.title,
+      stageId: stage.id,
+      stageIndex,
+      durationSeconds: stage.durationSeconds,
+      guidanceMode,
+      shouldPlayVoice,
+    });
+    // Timer/audio intentionally synchronize with the
+    // currently selected stage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stageIndex]);
 
@@ -74,10 +124,10 @@ export function useWalk(
 
     void audio.play(
       stage.musicSrc,
-      stage.voiceIntroSrc,
+      shouldPlayVoice ? stage.voiceIntroSrc : undefined,
       volume,
     );
-  }, [audio, stage, timer, volume]);
+  }, [audio, shouldPlayVoice, stage, timer, volume]);
 
   const pause = useCallback(() => {
     timer.pause();
@@ -93,10 +143,22 @@ export function useWalk(
     timer.pause();
     audio.stop();
     setStarted(false);
-
-    // Ending early is NOT a completed walk.
-    // The user's streak/progress should not advance.
   }, [audio, timer]);
+
+  const setShowSupport = useCallback(
+    (value: boolean | ((current: boolean) => boolean)) => {
+      if (guidanceMode === "embody") {
+        return;
+      }
+
+      const current = supportStageIndex === stageIndex;
+
+      const next = typeof value === "function" ? value(current) : value;
+
+      setSupportStageIndex(next ? stageIndex : null);
+    },
+    [guidanceMode, stageIndex, supportStageIndex],
+  );
 
   return {
     stages,
@@ -107,9 +169,14 @@ export function useWalk(
 
     guidanceMode,
     guidance,
+    shouldPlayVoice,
+
+    showSupport,
+    setShowSupport,
 
     remainingSeconds: timer.remainingSeconds,
     isPaused: started && !timer.isRunning,
+
     isPlaying: audio.isPlaying,
     audioError: audio.hasError,
 

@@ -2,27 +2,37 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useTimer(
-  initialSeconds: number,
-  onComplete?: () => void,
-) {
+export function useTimer(initialSeconds: number, onComplete?: () => void) {
   const [remainingSeconds, setRemainingSeconds] = useState(initialSeconds);
+
   const [isRunning, setIsRunning] = useState(false);
 
   const onCompleteRef = useRef(onComplete);
-  const completionPendingRef = useRef(false);
+  const completedRef = useRef(false);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning) {
+      return;
+    }
 
     const id = window.setInterval(() => {
       setRemainingSeconds((current) => {
         if (current <= 1) {
-          completionPendingRef.current = true;
+          window.clearInterval(id);
+
+          if (!completedRef.current) {
+            completedRef.current = true;
+
+            window.setTimeout(() => {
+              setIsRunning(false);
+              onCompleteRef.current?.();
+            }, 0);
+          }
+
           return 0;
         }
 
@@ -30,20 +40,13 @@ export function useTimer(
       });
     }, 1000);
 
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearInterval(id);
+    };
   }, [isRunning]);
 
-  useEffect(() => {
-    if (!completionPendingRef.current || remainingSeconds !== 0) {
-      return;
-    }
-
-    completionPendingRef.current = false;
-    setIsRunning(false);
-    onCompleteRef.current?.();
-  }, [remainingSeconds]);
-
   const start = useCallback(() => {
+    completedRef.current = false;
     setIsRunning(true);
   }, []);
 
@@ -53,7 +56,7 @@ export function useTimer(
 
   const reset = useCallback(
     (seconds = initialSeconds) => {
-      completionPendingRef.current = false;
+      completedRef.current = false;
       setIsRunning(false);
       setRemainingSeconds(seconds);
     },
