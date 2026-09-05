@@ -1,0 +1,66 @@
+name: Sync Feature Branches
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch branches
+        run: git fetch origin
+
+      - name: Sync feature branches
+        shell: bash
+        run: |
+          set +e
+
+          branches=$(git branch -r \
+            | grep 'origin/feat/' \
+            | sed 's|origin/||')
+
+          for branch in $branches
+          do
+            echo ""
+            echo "========================================"
+            echo "Syncing $branch"
+            echo "========================================"
+
+            git checkout -B "$branch" "origin/$branch"
+
+            git merge origin/dev --no-edit
+
+            if [ $? -eq 0 ]; then
+              echo "✓ $branch successfully synced"
+
+              git push origin "$branch"
+
+              if [ $? -eq 0 ]; then
+                echo "✓ $branch pushed successfully"
+              else
+                echo "* Failed to push $branch"
+              fi
+
+            else
+              echo "* Conflict detected in $branch"
+              echo "** Skipping $branch"
+
+              git merge --abort
+            fi
+          done
