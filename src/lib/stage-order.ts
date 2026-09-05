@@ -1,25 +1,31 @@
-import { DEFAULT_ORDER, STAGES } from "@/data/stages";
 import type { StageId } from "@/types/stage";
 
-export function validateStageOrder(order: StageId[]) {
-  if (order.length !== DEFAULT_ORDER.length) return false;
-  if (order[0] !== "opening-heart") return false;
-  if (order[order.length - 1] !== "celebrate") return false;
-  return new Set(order).size === DEFAULT_ORDER.length && order.every((id) => Boolean(STAGES[id]));
-}
+const ALL_IDS: StageId[] = [
+  "opening-heart",
+  "feeling-power",
+  "letting-go",
+  "higher-power",
+  "celebrate",
+];
 
-export function normalizeStageOrder(order: StageId[] | null | undefined) {
-  return order && validateStageOrder(order) ? order : [...DEFAULT_ORDER];
-}
+const FIRST = ALL_IDS[0];
+const LAST = ALL_IDS[ALL_IDS.length - 1];
+const MIDDLE = ALL_IDS.slice(1, -1);
 
-export function moveStage(order: StageId[], id: StageId, direction: "up" | "down") {
-  const index = order.indexOf(id);
-  if (index === -1) return order;
+export function normalizeStageOrder(order: StageId[] | undefined | null): StageId[] {
+  const middleCandidates = (order ?? []).filter(
+    (id): id is StageId => MIDDLE.includes(id),
+  );
 
-  const target = direction === "up" ? index - 1 : index + 1;
-  if (target <= 0 || target >= order.length - 1) return order;
+  const seen = new Set<StageId>();
+  const middle = middleCandidates.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 
-  const next = [...order];
-  [next[index], next[target]] = [next[target], next[index]];
-  return next;
+  const validMiddle =
+    middle.length === MIDDLE.length ? middle : MIDDLE;
+
+  return [FIRST, ...validMiddle, LAST];
 }

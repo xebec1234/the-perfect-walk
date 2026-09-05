@@ -16,7 +16,11 @@ let cachedState: AppState | null = null;
 
 function getSnapshot(): AppState {
   if (!cachedState) {
-    cachedState = loadAppState();
+    const loaded = loadAppState();
+    cachedState = {
+      ...loaded,
+      selectedOrder: normalizeStageOrder(loaded.selectedOrder),
+    };
   }
 
   return cachedState;
@@ -28,13 +32,21 @@ function getServerSnapshot(): AppState {
 
 function subscribe(callback: () => void) {
   const handleCustomChange = () => {
-    cachedState = loadAppState();
+    const loaded = loadAppState();
+    cachedState = {
+      ...loaded,
+      selectedOrder: normalizeStageOrder(loaded.selectedOrder),
+    };
     callback();
   };
 
   const handleStorageChange = (event: StorageEvent) => {
     if (event.key === "the-perfect-walk:v1") {
-      cachedState = loadAppState();
+      const loaded = loadAppState();
+      cachedState = {
+        ...loaded,
+        selectedOrder: normalizeStageOrder(loaded.selectedOrder),
+      };
       callback();
     }
   };

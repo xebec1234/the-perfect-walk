@@ -66,3 +66,5 @@ export function migrateAppState(input: Partial<AppState>): AppState {
     },
   };
 }
+
+

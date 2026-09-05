@@ -2,20 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 import { Orb } from "@/components/Orb";
 import { useAppState } from "@/hooks/useAppState";
 import { useWalk } from "@/hooks/useWalk";
+import Link from "next/link";
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60)
     .toString()
     .padStart(2, "0");
 
-  const secs = (seconds % 60)
-    .toString()
-    .padStart(2, "0");
+  const secs = (seconds % 60).toString().padStart(2, "0");
 
   return `${minutes}:${secs}`;
 }
@@ -26,14 +25,13 @@ export function Walk() {
 
   const [showSupport, setShowSupport] = useState(false);
 
-  const order =
-    state?.selectedOrder ?? [
-      "opening-heart",
-      "feeling-power",
-      "letting-go",
-      "higher-power",
-      "celebrate",
-    ];
+  const order = state?.selectedOrder ?? [
+    "opening-heart",
+    "feeling-power",
+    "letting-go",
+    "higher-power",
+    "celebrate",
+  ];
 
   const walk = useWalk(
     order,
@@ -62,9 +60,10 @@ export function Walk() {
   return (
     <main className="screen walk-screen">
       <div className="walk-topline">
-        <span>
-          Part {walk.stageIndex + 1} of {walk.stages.length}
-        </span>
+        <Link href="/" className="back-button">
+          <ArrowLeft size={19} />
+          <span>Back</span>
+        </Link>
 
         <span>{formatTime(walk.remainingSeconds)}</span>
       </div>
@@ -90,16 +89,10 @@ export function Walk() {
 
       <section className="walk-guidance" aria-live="polite">
         {guidance?.intro && (
-          <p className="walk-guidance-intro">
-            {guidance.intro}
-          </p>
+          <p className="walk-guidance-intro">{guidance.intro}</p>
         )}
 
-        {guidance?.anchor && (
-          <p className="walk-prompt">
-            {guidance.anchor}
-          </p>
-        )}
+        {guidance?.anchor && <p className="walk-prompt">{guidance.anchor}</p>}
 
         {showSupport && (
           <div className="walk-support">
