@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import { getStages } from "@/data/stages";
 import { getGuidanceMode } from "@/lib/guidance";
 import type { GuidanceMode, StageId } from "@/types/stage";
@@ -13,22 +12,12 @@ function loadAudioDuration(src: string): Promise<number> {
     audio.preload = "metadata";
 
     const cleanup = () => {
-      audio.removeEventListener(
-        "loadedmetadata",
-        handleMetadata,
-      );
-
-      audio.removeEventListener(
-        "error",
-        handleError,
-      );
+      audio.removeEventListener("loadedmetadata", handleLoaded);
+      audio.removeEventListener("error", handleError);
     };
 
-    const handleMetadata = () => {
-      const duration = Number.isFinite(audio.duration)
-        ? audio.duration
-        : 0;
-
+    const handleLoaded = () => {
+      const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
       cleanup();
       resolve(duration);
     };
@@ -38,16 +27,8 @@ function loadAudioDuration(src: string): Promise<number> {
       resolve(0);
     };
 
-    audio.addEventListener(
-      "loadedmetadata",
-      handleMetadata,
-    );
-
-    audio.addEventListener(
-      "error",
-      handleError,
-    );
-
+    audio.addEventListener("loadedmetadata", handleLoaded);
+    audio.addEventListener("error", handleError);
     audio.src = src;
     audio.load();
   });
@@ -57,11 +38,12 @@ export function useAudioDurations(
   order: StageId[] | undefined,
   totalCompleted: number,
 ) {
-  const [totalDuration, setTotalDuration] =
-    useState(0);
+  const [durations, setDurations] = useState<Record<StageId, number>>(
+    {} as Record<StageId, number>,
+  );
 
-  const [loading, setLoading] =
-    useState(true);
+  const [totalDuration, setTotalDuration] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,34 +52,37 @@ export function useAudioDurations(
       setLoading(true);
 
       const stages = getStages(order);
-
       const guidanceMode: GuidanceMode =
         getGuidanceMode(totalCompleted);
 
-      const durations = await Promise.all(
+      const entries = await Promise.all(
         stages.map(async (stage) => {
-          const musicDuration =
-            await loadAudioDuration(
-              stage.musicSrc,
-            );
+          const musicDuration = await loadAudioDuration(stage.musicSrc);
 
-          const voiceSrc =
-            stage.guidance[guidanceMode]?.voice;
+          const voiceSrc = stage.guidance[guidanceMode]?.voice;
 
           const voiceDuration = voiceSrc
             ? await loadAudioDuration(voiceSrc)
             : 0;
 
-          return voiceDuration + musicDuration;
+          return [
+            stage.id,
+            voiceDuration + musicDuration,
+          ] as const;
         }),
       );
 
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
+
+      const nextDurations = Object.fromEntries(entries) as Record<
+        StageId,
+        number
+      >;
+
+      setDurations(nextDurations);
 
       setTotalDuration(
-        durations.reduce(
+        Object.values(nextDurations).reduce(
           (total, duration) => total + duration,
           0,
         ),
@@ -114,6 +99,7 @@ export function useAudioDurations(
   }, [order, totalCompleted]);
 
   return {
+    durations,
     totalDuration,
     loading,
   };

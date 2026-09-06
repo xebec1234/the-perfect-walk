@@ -11,6 +11,7 @@ import {
 import { useAppState } from "@/hooks/useAppState";
 import { DEFAULT_ORDER, STAGES } from "@/data/stages";
 import type { StageId } from "@/types/stage";
+import { useAudioDurations } from "@/hooks/useAudioDuration";
 
 export function Flow() {
   const { state, setOrder } = useAppState();
@@ -48,9 +49,14 @@ export function Flow() {
     setOrder(next);
   };
 
-  const totalMinutes = Math.round(
-    order.reduce((total, id) => total + STAGES[id].durationSeconds, 0) / 60,
+  const totalCompleted = state?.streak.totalCompleted ?? 0;
+
+  const { durations, totalDuration, loading } = useAudioDurations(
+    order,
+    totalCompleted,
   );
+
+  const totalMinutes = totalDuration > 0 ? Math.round(totalDuration / 60) : 27;
 
   return (
     <main className="screen flow-screen">
@@ -100,7 +106,11 @@ export function Flow() {
 
                 <h2>{stage.title}</h2>
 
-                <small>{Math.round(stage.durationSeconds / 60)} min</small>
+                <small>
+                  {loading
+                    ? "Loading..."
+                    : `${Math.round((durations[id] ?? 0) / 60)} min`}
+                </small>
               </div>
 
               {isFixed ? (
