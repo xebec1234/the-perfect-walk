@@ -18,7 +18,6 @@ export type Stage = {
   number: number;
   title: string;
   subtitle: string;
-  durationSeconds: number;
   musicSrc: string;
   position: "first" | "middle" | "last";
 

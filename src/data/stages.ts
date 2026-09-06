@@ -14,7 +14,6 @@ export const STAGES: Record<StageId, Stage> = {
     number: 1,
     title: "Opening Your Heart",
     subtitle: "Begin gently",
-    durationSeconds: 9,
     musicSrc: "/audio/music/opening-heart.wav",
     position: "first",
 
@@ -53,7 +52,6 @@ export const STAGES: Record<StageId, Stage> = {
     number: 2,
     title: "Feeling Your Power",
     subtitle: "Feel what is already here",
-    durationSeconds: 9,
     musicSrc: "/audio/music/feeling-power.wav",
     position: "middle",
 
@@ -92,7 +90,6 @@ export const STAGES: Record<StageId, Stage> = {
     number: 3,
     title: "Letting Go & Total Presence",
     subtitle: "Come back to now",
-    durationSeconds: 9,
     musicSrc: "/audio/music/letting-go.wav",
     position: "middle",
 
@@ -131,7 +128,6 @@ export const STAGES: Record<StageId, Stage> = {
     number: 4,
     title: "Connecting with Higher Power",
     subtitle: "Make room for what you believe",
-    durationSeconds: 9,
     musicSrc: "/audio/music/higher-power.wav",
     position: "middle",
 
@@ -170,7 +166,6 @@ export const STAGES: Record<StageId, Stage> = {
     number: 5,
     title: "Celebrate & Raise Your Vibration",
     subtitle: "Finish in celebration",
-    durationSeconds: 9,
     musicSrc: "/audio/music/celebrate.wav",
     position: "last",
 
@@ -210,13 +205,4 @@ export function getStages(
   order: StageId[] = DEFAULT_ORDER,
 ): Stage[] {
   return order.map((id) => STAGES[id]);
-}
-
-export function getTotalDuration(
-  order: StageId[] = DEFAULT_ORDER,
-): number {
-  return getStages(order).reduce(
-    (total, stage) => total + stage.durationSeconds,
-    0,
-  );
 }

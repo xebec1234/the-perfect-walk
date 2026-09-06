@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { getStages } from "@/data/stages";
 import { getGuidanceMode } from "@/lib/guidance";
 import type { StageId } from "@/types/stage";
+
 import { useAudio } from "./useAudio";
 import { useAppState } from "./useAppState";
-import { useTimer } from "./useTimer";
-
-const USE_AUDIO_FOR_TEST_PROGRESSION = process.env.NODE_ENV === "development";
 
 export function useWalk(
   order: StageId[],
@@ -47,24 +46,20 @@ export function useWalk(
     guidanceMode === "trust";
 
   const [stageIndex, setStageIndex] = useState(0);
-
   const [started, setStarted] = useState(false);
-
   const [completed, setCompleted] = useState(false);
 
   const completionHandledRef = useRef(false);
 
   const stage = stages[stageIndex];
-
   const guidance = stage?.guidance[guidanceMode];
 
   /*
    * Move to the next stage.
    *
-   * In development/test mode this is triggered
-   * by MUSIC ending.
-   *
-   * In production this is triggered by the timer.
+   * Stage progression is now driven by the actual
+   * audio ending rather than a manually configured
+   * durationSeconds value.
    */
   const advanceToNextStage = useCallback(() => {
     if (stageIndex < stages.length - 1) {
@@ -76,16 +71,7 @@ export function useWalk(
     setStarted(false);
   }, [stageIndex, stages.length]);
 
-  /*
-   * MUSIC finished.
-   *
-   * This is the Sprint 1 test progression path.
-   */
   const handleMusicFinished = useCallback(() => {
-    if (!USE_AUDIO_FOR_TEST_PROGRESSION) {
-      return;
-    }
-
     console.log("[Walk] Music finished → next stage");
 
     advanceToNextStage();
@@ -93,14 +79,6 @@ export function useWalk(
 
   const audio = useAudio({
     onMusicFinished: handleMusicFinished,
-  });
-
-  const timer = useTimer(stage?.durationSeconds ?? 0, () => {
-    if (USE_AUDIO_FOR_TEST_PROGRESSION) {
-      return;
-    }
-
-    advanceToNextStage();
   });
 
   /*
@@ -111,10 +89,19 @@ export function useWalk(
       stageIndex,
       stageNumber: stage?.number,
       title: stage?.title,
-      durationSeconds: stage?.durationSeconds,
+      voiceDuration: audio.voiceDuration,
+      musicDuration: audio.musicDuration,
+      totalDuration: audio.totalDuration,
       guidanceMode,
     });
-  }, [stageIndex, stage, guidanceMode]);
+  }, [
+    stageIndex,
+    stage,
+    guidanceMode,
+    audio.voiceDuration,
+    audio.musicDuration,
+    audio.totalDuration,
+  ]);
 
   useEffect(() => {
     console.log("[Walk] Audio:", {
@@ -122,39 +109,29 @@ export function useWalk(
       title: stage?.title,
       audioState: audio.audioState,
       isPlaying: audio.isPlaying,
+      elapsedSeconds: audio.elapsedSeconds,
+      remainingSeconds: audio.remainingSeconds,
+      totalDuration: audio.totalDuration,
     });
-  }, [stageIndex, stage?.title, audio.audioState, audio.isPlaying]);
-
-  useEffect(() => {
-    console.log("[Walk] Timer:", {
-      stageIndex,
-      title: stage?.title,
-      remainingSeconds: timer.remainingSeconds,
-      isRunning: timer.isRunning,
-      testMode: USE_AUDIO_FOR_TEST_PROGRESSION,
-    });
-  }, [stageIndex, stage?.title, timer.remainingSeconds, timer.isRunning]);
+  }, [
+    stageIndex,
+    stage?.title,
+    audio.audioState,
+    audio.isPlaying,
+    audio.elapsedSeconds,
+    audio.remainingSeconds,
+    audio.totalDuration,
+  ]);
 
   /*
    * When the stage changes:
    *
-   * 1. Reset timer.
-   * 2. If walk is started, start the stage.
+   * GUIDE → MUSIC → next stage
    *
-   * Development:
-   *   GUIDE → MUSIC → next stage
-   *
-   * Production:
-   *   GUIDE → MUSIC → timer → next stage
+   * The actual audio files determine the duration.
    */
   useEffect(() => {
-    if (!stage) {
-      return;
-    }
-
-    timer.reset(stage.durationSeconds);
-
-    if (!started) {
+    if (!stage || !started) {
       return;
     }
 
@@ -165,10 +142,6 @@ export function useWalk(
       shouldPlayVoice ? voiceSrc : undefined,
       volume,
     );
-
-    if (!USE_AUDIO_FOR_TEST_PROGRESSION) {
-      timer.start();
-    }
 
     // Intentionally responds to stageIndex only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,10 +162,6 @@ export function useWalk(
 
     setStarted(true);
 
-    if (!USE_AUDIO_FOR_TEST_PROGRESSION) {
-      timer.start();
-    }
-
     const voiceSrc = guidance?.voice || undefined;
 
     void audio.play(
@@ -206,28 +175,22 @@ export function useWalk(
     shouldPlayVoice,
     stage,
     stageIndex,
-    timer,
     volume,
   ]);
 
   /*
-   * Pause audio and production timer.
+   * Pause audio.
    */
   const pause = useCallback(() => {
-    timer.pause();
     audio.pause();
-  }, [audio, timer]);
+  }, [audio]);
 
   /*
-   * Resume audio and production timer.
+   * Resume audio.
    */
   const resume = useCallback(() => {
-    if (!USE_AUDIO_FOR_TEST_PROGRESSION) {
-      timer.start();
-    }
-
     void audio.resume();
-  }, [audio, timer]);
+  }, [audio]);
 
   /*
    * Skip the guide and immediately start music.
@@ -246,11 +209,9 @@ export function useWalk(
   const finishEarly = useCallback(() => {
     console.log("[Walk] Ending walk early");
 
-    timer.pause();
     audio.stop();
     setStarted(false);
-  }, [audio, timer]);
-
+  }, [audio]);
 
   /*
    * Final stage completed.
@@ -268,9 +229,6 @@ export function useWalk(
 
   /*
    * PUBLIC API
-   *
-   * These names intentionally match what
-   * Walk.tsx expects.
    */
   return {
     stages,
@@ -285,28 +243,28 @@ export function useWalk(
     guidance,
     shouldPlayVoice,
 
-    remainingSeconds: timer.remainingSeconds,
+    /*
+     * Dynamic audio-derived timing.
+     */
+    elapsedSeconds: audio.elapsedSeconds,
+    remainingSeconds: audio.remainingSeconds,
+    stageDuration: audio.totalDuration,
 
-    isTimerRunning: timer.isRunning,
+    voiceDuration: audio.voiceDuration,
+    musicDuration: audio.musicDuration,
+
+    isTimerRunning: audio.isPlaying,
 
     audioState: audio.audioState,
 
-    /*
-     * UI-friendly aliases.
-     */
     isPlaying: audio.isPlaying,
 
     isPaused: audio.audioState === "paused",
 
     audioError: audio.hasError,
-
     hasAudioError: audio.hasError,
-
     isAudioPlaying: audio.isPlaying,
 
-    /*
-     * Controls.
-     */
     start,
     pause,
     resume,

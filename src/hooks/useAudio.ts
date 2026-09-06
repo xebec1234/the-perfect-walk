@@ -1,381 +1,531 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AudioState, ActiveSource } from "@/types/walk";
+
+type AudioState =
+  | "idle"
+  | "intro"
+  | "music"
+  | "paused"
+  | "error"
+  | "complete";
 
 type UseAudioOptions = {
   onMusicFinished?: () => void;
 };
 
-export function useAudio(options: UseAudioOptions = {}) {
+export function useAudio({
+  onMusicFinished,
+}: UseAudioOptions = {}) {
   const musicRef = useRef<HTMLAudioElement | null>(null);
   const voiceRef = useRef<HTMLAudioElement | null>(null);
 
-  const onMusicFinishedRef = useRef(options.onMusicFinished);
+  const onMusicFinishedRef = useRef(onMusicFinished);
 
-  const activeSourceRef = useRef<ActiveSource>(null);
+  const pendingMusicSrcRef = useRef<string | null>(null);
+  const pendingMusicVolumeRef = useRef(1);
+
+  const activeSourceRef = useRef<
+    "voice" | "music" | null
+  >(null);
+
+  const voiceDurationRef = useRef(0);
+  const musicDurationRef = useRef(0);
+
+  const [audioState, setAudioState] =
+    useState<AudioState>("idle");
+
+  const [hasError, setHasError] =
+    useState(false);
+
+  const [isPlaying, setIsPlaying] =
+    useState(false);
+
+  const [voiceDuration, setVoiceDuration] =
+    useState(0);
+
+  const [musicDuration, setMusicDuration] =
+    useState(0);
+
+  const [elapsedSeconds, setElapsedSeconds] =
+    useState(0);
 
   /*
-   * When a guide is playing, remember which music should
-   * start automatically when the guide finishes.
+   * Keep the latest completion callback available
+   * to native audio event handlers.
    */
-  const pendingMusicSrcRef = useRef<string | null>(null);
-  const pendingMusicVolumeRef = useRef(0.82);
+  useEffect(() => {
+    onMusicFinishedRef.current = onMusicFinished;
+  }, [onMusicFinished]);
 
-  const [audioState, setAudioState] = useState<AudioState>("idle");
-  const [hasError, setHasError] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  /*
+   * Keep duration refs synchronized with state.
+   *
+   * Event listeners use refs so they don't need to
+   * be recreated whenever metadata loads.
+   */
+  useEffect(() => {
+    voiceDurationRef.current = voiceDuration;
+  }, [voiceDuration]);
 
   useEffect(() => {
-    onMusicFinishedRef.current = options.onMusicFinished;
-  }, [options.onMusicFinished]);
+    musicDurationRef.current = musicDuration;
+  }, [musicDuration]);
 
   /*
-   * MUSIC
+   * Play music only.
+   *
+   * This function is declared BEFORE the effect that
+   * needs to call it.
    */
-  const getMusic = useCallback(() => {
-    if (!musicRef.current) {
-      const audio = new Audio();
+  const playMusicInternal = useCallback(
+    async (
+      musicSrc: string,
+      volume: number,
+    ) => {
+      const music = musicRef.current;
 
-      audio.preload = "auto";
-      audio.loop = false;
+      if (!music) {
+        return;
+      }
 
-      audio.addEventListener("play", () => {
-        console.log("[Audio] MUSIC play");
+      try {
+        music.pause();
+        music.currentTime = 0;
+
+        music.src = musicSrc;
+        music.volume = volume;
+
+        /*
+         * Reset the duration for the new music file.
+         * loadedmetadata will populate the real value.
+         */
+        setMusicDuration(0);
+        musicDurationRef.current = 0;
 
         activeSourceRef.current = "music";
 
-        setIsPlaying(true);
+        setHasError(false);
         setAudioState("music");
-      });
+        setIsPlaying(true);
 
-      audio.addEventListener("playing", () => {
-        console.log("[Audio] MUSIC playing");
-      });
+        await music.play();
+      } catch (error) {
+        console.error(
+          "[Audio] Music playback failed:",
+          error,
+        );
 
-      audio.addEventListener("pause", () => {
-        console.log("[Audio] MUSIC pause", {
-          currentTime: audio.currentTime,
-          duration: audio.duration,
-          ended: audio.ended,
-        });
-
+        setHasError(true);
         setIsPlaying(false);
-      });
+        setAudioState("error");
+      }
+    },
+    [],
+  );
 
-      audio.addEventListener("ended", () => {
-        console.log("[Audio] MUSIC ended");
+  /*
+   * Create audio elements ONCE.
+   *
+   * Important:
+   * This effect intentionally has an empty dependency
+   * array. We do not want React recreating the audio
+   * elements whenever duration state changes.
+   */
+  useEffect(() => {
+    const music = new Audio();
+    const voice = new Audio();
 
+    music.preload = "metadata";
+    voice.preload = "metadata";
+
+    musicRef.current = music;
+    voiceRef.current = voice;
+
+    /*
+     * MUSIC METADATA
+     *
+     * This is where the browser gives us the actual
+     * duration of the music file.
+     */
+    const handleMusicLoadedMetadata = () => {
+      const duration = Number.isFinite(
+        music.duration,
+      )
+        ? music.duration
+        : 0;
+
+      musicDurationRef.current = duration;
+      setMusicDuration(duration);
+
+      console.log(
+        "[Audio] Music duration:",
+        duration,
+      );
+    };
+
+    /*
+     * VOICE METADATA
+     *
+     * This is where the browser gives us the actual
+     * duration of the voice file.
+     */
+    const handleVoiceLoadedMetadata = () => {
+      const duration = Number.isFinite(
+        voice.duration,
+      )
+        ? voice.duration
+        : 0;
+
+      voiceDurationRef.current = duration;
+      setVoiceDuration(duration);
+
+      console.log(
+        "[Audio] Voice duration:",
+        duration,
+      );
+    };
+
+    /*
+     * Voice playback position.
+     */
+    const handleVoiceTimeUpdate = () => {
+      if (
+        activeSourceRef.current !== "voice"
+      ) {
+        return;
+      }
+
+      setElapsedSeconds(
+        voice.currentTime,
+      );
+    };
+
+    /*
+     * Music playback position.
+     *
+     * Total stage elapsed time is:
+     *
+     * voice duration + music currentTime
+     */
+    const handleMusicTimeUpdate = () => {
+      if (
+        activeSourceRef.current !== "music"
+      ) {
+        return;
+      }
+
+      setElapsedSeconds(
+        voiceDurationRef.current +
+          music.currentTime,
+      );
+    };
+
+    /*
+     * Voice finished.
+     *
+     * Immediately begin the music.
+     */
+    const handleVoiceEnded = () => {
+      const pendingMusicSrc =
+        pendingMusicSrcRef.current;
+
+      if (!pendingMusicSrc) {
         activeSourceRef.current = null;
 
         setIsPlaying(false);
         setAudioState("complete");
 
-        onMusicFinishedRef.current?.();
-      });
-
-      audio.addEventListener("error", () => {
-        console.error("[Audio] MUSIC error", {
-          error: audio.error,
-          src: audio.src,
-        });
-
-        activeSourceRef.current = null;
-
-        setHasError(true);
-        setIsPlaying(false);
-        setAudioState("error");
-      });
-
-      musicRef.current = audio;
-    }
-
-    return musicRef.current;
-  }, []);
-
-  /*
-   * Start MUSIC.
-   */
-  const playMusic = useCallback(
-    async (musicSrc: string, volume: number) => {
-      const music = getMusic();
-
-      console.log("[Audio] Starting music", {
-        musicSrc,
-      });
-
-      music.volume = Math.max(0, Math.min(1, volume));
-
-      const resolvedMusicSrc = new URL(musicSrc, window.location.href).href;
-
-      if (music.src !== resolvedMusicSrc) {
-        music.src = musicSrc;
-        music.load();
+        return;
       }
 
-      try {
-        await music.play();
+      void playMusicInternal(
+        pendingMusicSrc,
+        pendingMusicVolumeRef.current,
+      );
+    };
 
-        activeSourceRef.current = "music";
+    /*
+     * Music finished.
+     *
+     * This is the actual stage completion event.
+     */
+    const handleMusicEnded = () => {
+      activeSourceRef.current = null;
 
-        setIsPlaying(true);
-        setAudioState("music");
-      } catch (error) {
-        console.error("[Audio] MUSIC play() failed", error);
+      const totalDuration =
+        voiceDurationRef.current +
+        musicDurationRef.current;
 
-        setHasError(true);
-        setIsPlaying(false);
-        setAudioState("error");
-      }
-    },
-    [getMusic],
-  );
+      setElapsedSeconds(totalDuration);
+      setIsPlaying(false);
+      setAudioState("complete");
 
-  /*
-   * GUIDE / VOICE
-   */
-  const getVoice = useCallback(() => {
-    if (!voiceRef.current) {
-      const audio = new Audio();
+      console.log(
+        "[Audio] Music finished:",
+        {
+          voiceDuration:
+            voiceDurationRef.current,
+          musicDuration:
+            musicDurationRef.current,
+          totalDuration,
+        },
+      );
 
-      audio.preload = "auto";
+      onMusicFinishedRef.current?.();
+    };
 
-      audio.addEventListener("play", () => {
-        console.log("[Audio] GUIDE play");
+    /*
+     * Music error.
+     */
+    const handleMusicError = () => {
+      console.error(
+        "[Audio] Music error",
+        music.error,
+      );
 
-        activeSourceRef.current = "guide";
+      setHasError(true);
+      setIsPlaying(false);
+      setAudioState("error");
+    };
 
-        setIsPlaying(true);
-        setAudioState("intro");
-      });
+    /*
+     * Voice error.
+     *
+     * Voice is optional. If it fails, continue
+     * directly to the music.
+     */
+    const handleVoiceError = () => {
+      console.error(
+        "[Audio] Voice error",
+        voice.error,
+      );
 
-      audio.addEventListener("playing", () => {
-        console.log("[Audio] GUIDE playing");
-      });
+      const pendingMusicSrc =
+        pendingMusicSrcRef.current;
 
-      audio.addEventListener("pause", () => {
-        console.log("[Audio] GUIDE pause", {
-          currentTime: audio.currentTime,
-          duration: audio.duration,
-          ended: audio.ended,
-          readyState: audio.readyState,
-        });
-
-        setIsPlaying(false);
-      });
-
-      audio.addEventListener("ended", () => {
-        console.log("[Audio] GUIDE ended");
-
-        activeSourceRef.current = null;
-
-        setIsPlaying(false);
-        setAudioState("idle");
-
-        /*
-         * The guide has finished.
-         * Start the music that was saved when
-         * this stage began.
-         */
-        const nextMusicSrc = pendingMusicSrcRef.current;
-        const nextMusicVolume = pendingMusicVolumeRef.current;
-
-        pendingMusicSrcRef.current = null;
-
-        if (nextMusicSrc) {
-          console.log("[Audio] GUIDE finished → starting MUSIC", {
-            musicSrc: nextMusicSrc,
-          });
-
-          void playMusic(nextMusicSrc, nextMusicVolume);
-        }
-      });
-
-      audio.addEventListener("error", () => {
-        console.error("[Audio] GUIDE error", {
-          error: audio.error,
-          src: audio.src,
-        });
-
-        activeSourceRef.current = null;
-
-        setHasError(true);
-        setIsPlaying(false);
-        setAudioState("error");
-      });
-
-      voiceRef.current = audio;
-    }
-
-    return voiceRef.current;
-  }, [playMusic]);
-
-  /*
-   * PLAY STAGE
-   *
-   * Sequence:
-   *
-   * GUIDE → MUSIC
-   *
-   * If there is no guide:
-   *
-   * MUSIC immediately
-   */
-  const play = useCallback(
-    async (musicSrc: string, voiceSrc?: string, volume = 0.82) => {
-      console.log("[Audio] PLAY requested", {
-        musicSrc,
-        voiceSrc,
-        volume,
-      });
-
-      setHasError(false);
-
-      const music = getMusic();
-      const voice = getVoice();
-
-      /*
-       * Stop both sources before starting
-       * the new stage.
-       */
-      music.pause();
-      voice.pause();
-
-      music.currentTime = 0;
-      voice.currentTime = 0;
-
-      music.volume = Math.max(0, Math.min(1, volume));
-      voice.volume = Math.max(0, Math.min(1, volume));
-
-      /*
-       * Prepare the music source now.
-       */
-      const resolvedMusicSrc = new URL(musicSrc, window.location.href).href;
-
-      if (music.src !== resolvedMusicSrc) {
-        music.src = musicSrc;
-        music.load();
-      }
-
-      /*
-       * GUIDE FIRST
-       */
-      if (voiceSrc) {
-        console.log("[Audio] Preparing GUIDE", {
-          voiceSrc,
-        });
-
-        /*
-         * IMPORTANT:
-         *
-         * Save the music BEFORE the guide starts.
-         * When the guide fires "ended", the handler
-         * will read these refs and start the music.
-         */
-        pendingMusicSrcRef.current = musicSrc;
-        pendingMusicVolumeRef.current = volume;
-
-        voice.src = voiceSrc;
-        voice.load();
-
-        activeSourceRef.current = "guide";
-
-        setAudioState("intro");
-
-        try {
-          await voice.play();
-
-          console.log("[Audio] GUIDE play() resolved");
-
-          setIsPlaying(true);
-        } catch (error) {
-          console.error("[Audio] GUIDE play() failed", error);
-
-          /*
-           * Guide is optional.
-           * If it cannot play, continue directly
-           * to the music.
-           */
-          pendingMusicSrcRef.current = null;
-
-          await playMusic(musicSrc, volume);
-        }
+      if (pendingMusicSrc) {
+        void playMusicInternal(
+          pendingMusicSrc,
+          pendingMusicVolumeRef.current,
+        );
 
         return;
       }
 
-      /*
-       * No guide.
-       * Start music immediately.
-       */
-      await playMusic(musicSrc, volume);
-    },
-    [getMusic, getVoice, playMusic],
-  );
+      setHasError(true);
+      setIsPlaying(false);
+      setAudioState("error");
+    };
+
+    music.addEventListener(
+      "loadedmetadata",
+      handleMusicLoadedMetadata,
+    );
+
+    music.addEventListener(
+      "timeupdate",
+      handleMusicTimeUpdate,
+    );
+
+    music.addEventListener(
+      "ended",
+      handleMusicEnded,
+    );
+
+    music.addEventListener(
+      "error",
+      handleMusicError,
+    );
+
+    voice.addEventListener(
+      "loadedmetadata",
+      handleVoiceLoadedMetadata,
+    );
+
+    voice.addEventListener(
+      "timeupdate",
+      handleVoiceTimeUpdate,
+    );
+
+    voice.addEventListener(
+      "ended",
+      handleVoiceEnded,
+    );
+
+    voice.addEventListener(
+      "error",
+      handleVoiceError,
+    );
+
+    return () => {
+      music.pause();
+      voice.pause();
+
+      music.removeEventListener(
+        "loadedmetadata",
+        handleMusicLoadedMetadata,
+      );
+
+      music.removeEventListener(
+        "timeupdate",
+        handleMusicTimeUpdate,
+      );
+
+      music.removeEventListener(
+        "ended",
+        handleMusicEnded,
+      );
+
+      music.removeEventListener(
+        "error",
+        handleMusicError,
+      );
+
+      voice.removeEventListener(
+        "loadedmetadata",
+        handleVoiceLoadedMetadata,
+      );
+
+      voice.removeEventListener(
+        "timeupdate",
+        handleVoiceTimeUpdate,
+      );
+
+      voice.removeEventListener(
+        "ended",
+        handleVoiceEnded,
+      );
+
+      voice.removeEventListener(
+        "error",
+        handleVoiceError,
+      );
+
+      musicRef.current = null;
+      voiceRef.current = null;
+    };
+  }, [playMusicInternal]);
 
   /*
-   * SKIP GUIDE
+   * Start a stage.
+   *
+   * With voice:
+   *
+   *   VOICE → MUSIC → onMusicFinished
+   *
+   * Without voice:
+   *
+   *   MUSIC → onMusicFinished
    */
-  const skipGuide = useCallback(
-    async (musicSrc: string, volume = 0.82) => {
+  const play = useCallback(
+    async (
+      musicSrc: string,
+      voiceSrc: string | undefined,
+      volume: number,
+    ) => {
+      const music = musicRef.current;
       const voice = voiceRef.current;
 
-      if (voice) {
-        voice.pause();
-        voice.currentTime = 0;
+      if (!music || !voice) {
+        return;
       }
 
-      pendingMusicSrcRef.current = null;
-      pendingMusicVolumeRef.current = volume;
-      activeSourceRef.current = null;
+      setHasError(false);
+      setElapsedSeconds(0);
 
-      setIsPlaying(false);
-      setAudioState("idle");
+      /*
+       * Store music so the voice's ended event
+       * knows what to play next.
+       */
+      pendingMusicSrcRef.current =
+        musicSrc;
 
-      await playMusic(musicSrc, volume);
+      pendingMusicVolumeRef.current =
+        volume;
+
+      music.pause();
+      music.currentTime = 0;
+
+      voice.pause();
+      voice.currentTime = 0;
+
+      setMusicDuration(0);
+      musicDurationRef.current = 0;
+
+      setVoiceDuration(0);
+      voiceDurationRef.current = 0;
+
+      music.volume = volume;
+      voice.volume = volume;
+
+      /*
+       * No voice for this guidance mode.
+       */
+      if (!voiceSrc) {
+        await playMusicInternal(
+          musicSrc,
+          volume,
+        );
+
+        return;
+      }
+
+      try {
+        voice.src = voiceSrc;
+
+        activeSourceRef.current =
+          "voice";
+
+        setAudioState("intro");
+        setIsPlaying(true);
+
+        await voice.play();
+      } catch (error) {
+        console.error(
+          "[Audio] Voice playback failed:",
+          error,
+        );
+
+        /*
+         * Voice failure should not prevent the
+         * actual walk music from playing.
+         */
+        await playMusicInternal(
+          musicSrc,
+          volume,
+        );
+      }
     },
-    [playMusic],
+    [playMusicInternal],
   );
 
   /*
-   * PAUSE
+   * Pause current audio.
    */
   const pause = useCallback(() => {
-    console.log("[Audio] PAUSE requested", {
-      activeSource: activeSourceRef.current,
-    });
+    musicRef.current?.pause();
+    voiceRef.current?.pause();
 
-    const music = musicRef.current;
-    const voice = voiceRef.current;
-
-    music?.pause();
-    voice?.pause();
-
-    setIsPlaying(false);
-    setAudioState("paused");
+    if (activeSourceRef.current) {
+      setIsPlaying(false);
+      setAudioState("paused");
+    }
   }, []);
 
   /*
-   * RESUME
+   * Resume whichever audio source is active.
    */
   const resume = useCallback(async () => {
-    console.log("[Audio] RESUME requested", {
-      activeSource: activeSourceRef.current,
-    });
+    const music = musicRef.current;
+    const voice = voiceRef.current;
 
     try {
-      const activeSource = activeSourceRef.current;
-
-      /*
-       * Resume GUIDE.
-       */
-      if (activeSource === "guide") {
-        const voice = voiceRef.current;
-
-        if (!voice) {
-          return;
-        }
-
+      if (
+        activeSourceRef.current ===
+          "voice" &&
+        voice
+      ) {
         await voice.play();
 
         setIsPlaying(true);
@@ -384,23 +534,21 @@ export function useAudio(options: UseAudioOptions = {}) {
         return;
       }
 
-      /*
-       * Resume MUSIC.
-       */
-      const music = musicRef.current;
+      if (
+        activeSourceRef.current ===
+          "music" &&
+        music
+      ) {
+        await music.play();
 
-      if (!music) {
-        return;
+        setIsPlaying(true);
+        setAudioState("music");
       }
-
-      await music.play();
-
-      activeSourceRef.current = "music";
-
-      setIsPlaying(true);
-      setAudioState("music");
     } catch (error) {
-      console.error("[Audio] RESUME failed", error);
+      console.error(
+        "[Audio] Resume failed:",
+        error,
+      );
 
       setHasError(true);
       setIsPlaying(false);
@@ -409,57 +557,116 @@ export function useAudio(options: UseAudioOptions = {}) {
   }, []);
 
   /*
-   * STOP
+   * Skip voice guide and immediately begin music.
+   */
+  const skipGuide = useCallback(
+    async (
+      musicSrc: string,
+      volume: number,
+    ) => {
+      const voice = voiceRef.current;
+
+      if (voice) {
+        voice.pause();
+        voice.currentTime = 0;
+      }
+
+      /*
+       * We are intentionally starting music now,
+       * so clear the pending voice → music handoff.
+       */
+      pendingMusicSrcRef.current =
+        null;
+
+      pendingMusicVolumeRef.current =
+        volume;
+
+      /*
+       * When skipping the guide, elapsed time
+       * starts from the beginning of the music.
+       */
+      setElapsedSeconds(0);
+
+      await playMusicInternal(
+        musicSrc,
+        volume,
+      );
+    },
+    [playMusicInternal],
+  );
+
+  /*
+   * Stop everything.
    */
   const stop = useCallback(() => {
-    console.log("[Audio] STOP requested");
+    musicRef.current?.pause();
+    voiceRef.current?.pause();
 
-    const music = musicRef.current;
-    const voice = voiceRef.current;
-
-    music?.pause();
-    voice?.pause();
-
-    if (music) {
-      music.currentTime = 0;
+    if (musicRef.current) {
+      musicRef.current.currentTime = 0;
     }
 
-    if (voice) {
-      voice.currentTime = 0;
+    if (voiceRef.current) {
+      voiceRef.current.currentTime = 0;
     }
-
-    pendingMusicSrcRef.current = null;
 
     activeSourceRef.current = null;
+    pendingMusicSrcRef.current = null;
 
     setIsPlaying(false);
     setAudioState("idle");
+    setElapsedSeconds(0);
   }, []);
 
   /*
-   * CLEANUP
+   * ACTUAL STAGE DURATION
+   *
+   * This is the calculation you were asking about.
+   *
+   * The browser supplies:
+   *
+   *   voice.duration
+   *   music.duration
+   *
+   * We add them together.
    */
-  useEffect(() => {
-    return () => {
-      console.log("[Audio] Controller unmount");
+  const totalDuration =
+    voiceDuration + musicDuration;
 
-      musicRef.current?.pause();
-      voiceRef.current?.pause();
-
-      musicRef.current = null;
-      voiceRef.current = null;
-    };
-  }, []);
+  /*
+   * ACTUAL REMAINING TIME
+   */
+  const remainingSeconds = Math.max(
+    0,
+    totalDuration - elapsedSeconds,
+  );
 
   return {
     audioState,
-    isPlaying,
     hasError,
+    isPlaying,
+
+    /*
+     * Actual file durations.
+     */
+    voiceDuration,
+    musicDuration,
+
+    /*
+     * Actual calculated stage duration.
+     */
+    totalDuration,
+
+    /*
+     * Actual playback position.
+     */
+    elapsedSeconds,
+    remainingSeconds,
 
     play,
     pause,
     resume,
-    stop,
     skipGuide,
+    stop,
   };
 }
