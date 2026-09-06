@@ -8,6 +8,8 @@ export type AudioState =
   | "error"
   | "complete";
 
+export type ActiveSource = "guide" | "music" | null;
+
 export type WalkRuntimeState = {
   isRunning: boolean;
   isPaused: boolean;

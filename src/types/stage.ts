@@ -10,6 +10,7 @@ export type GuidanceMode = "discover" | "remember" | "trust" | "embody";
 export type StageGuidance = {
   intro: string;
   anchor: string;
+  voice: string;
 };
 
 export type Stage = {
@@ -17,9 +18,7 @@ export type Stage = {
   number: number;
   title: string;
   subtitle: string;
-  prompt: string;
   durationSeconds: number;
-  voiceIntroSrc: string;
   musicSrc: string;
   position: "first" | "middle" | "last";
 

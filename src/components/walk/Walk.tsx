@@ -80,57 +80,45 @@ export function Walk() {
             } as React.CSSProperties
           }
         >
-          <Orb />
+          <Orb pulse={walk.started && walk.audioState !== "paused"} />
         </div>
       </div>
 
-      {!isEmbodied && (
+      {!isEmbodied && walk.guidance?.intro && (
         <section className="walk-guidance" aria-live="polite">
-          {walk.guidance?.intro && (
-            <p className="walk-guidance-intro">{walk.guidance.intro}</p>
-          )}
+          <p className="walk-guidance-intro">{walk.guidance.intro}</p>
 
-          {walk.guidance?.anchor && (
+          {walk.guidance.anchor && (
             <p className="walk-prompt">{walk.guidance.anchor}</p>
           )}
-
-          {walk.showSupport && (
-            <div className="walk-support">
-              <p>{walk.stage.prompt}</p>
-            </div>
-          )}
         </section>
-      )}
-
-      {!isEmbodied && (
-        <button
-          className="quiet-button"
-          onClick={() => walk.setShowSupport((current) => !current)}
-          aria-expanded={walk.showSupport}
-        >
-          {walk.showSupport ? "Hide guidance" : "Guide me"}
-        </button>
       )}
 
       <div className="player-card">
         <div className="player-info">
           <span className="player-icon">
-            {walk.isPlaying ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            {walk.isAudioPlaying ? (
+              <Volume2 size={18} />
+            ) : (
+              <VolumeX size={18} />
+            )}
           </span>
 
-          <span>
+          <span className="player-copy">
             <strong>Music for this part</strong>
-            <small>{walk.isPlaying ? "Playing" : "Paused"}</small>
+            <small>{walk.isAudioPlaying ? "Playing" : "Paused"}</small>
           </span>
         </div>
 
         {walk.started && (
           <button
             className="icon-button"
-            onClick={walk.isPaused ? walk.resume : walk.pause}
-            aria-label={walk.isPaused ? "Resume audio" : "Pause audio"}
+            onClick={walk.audioState === "paused" ? walk.resume : walk.pause}
+            aria-label={
+              walk.audioState === "paused" ? "Resume audio" : "Pause audio"
+            }
           >
-            {walk.isPaused ? (
+            {walk.audioState === "paused" ? (
               <Play size={17} fill="currentColor" />
             ) : (
               <Pause size={17} fill="currentColor" />
@@ -139,6 +127,12 @@ export function Walk() {
         )}
       </div>
 
+      {walk.started && walk.audioState === "intro" && (
+        <button className="quiet-button" onClick={walk.skipGuide}>
+          Skip guide
+        </button>
+      )}
+
       {walk.audioError && (
         <p className="walk-audio-error" role="status">
           Audio could not start. You can continue walking without it.
@@ -146,7 +140,7 @@ export function Walk() {
       )}
 
       {!walk.started && (
-        <button className="primary-button" onClick={walk.start}>
+        <button className="primary-button mt-4" onClick={walk.start}>
           <Play size={17} fill="currentColor" />
           Begin this part
         </button>

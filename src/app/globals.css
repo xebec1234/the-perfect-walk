@@ -89,6 +89,21 @@ h1 {
 .orb-large { width: 150px; height: 150px; }
 .orb-small { width: 128px; height: 128px; }
 
+.orb-pulse {
+  animation: orb-breathe 4s ease-in-out infinite;
+}
+
+@keyframes orb-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+  }
+}
+
 .home-action { margin-top: -10px; }
 .primary-card, .player-card, .streak-card, .reflection-card, .stage-card {
   background: rgba(255, 251, 241, .84);
@@ -323,14 +338,58 @@ h1 {
 .progress-ring::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #fbf1df; }
 .progress-ring .orb { z-index: 1; width: 148px; height: 148px; }
 .walk-prompt { min-height: 65px; max-width: 300px; margin: 0 auto 19px; color: #9c8156; font-family: Georgia, serif; font-style: italic; font-size: 14px; line-height: 1.25; }
-.player-card { min-height: 72px; border-radius: 18px; padding: 10px 11px; display: flex; align-items: center; text-align: left; gap: 10px; }
-.audio-art { width: 40px; height: 40px; border-radius: 9px; background: linear-gradient(145deg, #ffe6a0, #e9a51d); display: grid; place-items: center; }
-.audio-dot { width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,.72); }
-.audio-copy { flex: 1; }
-.audio-copy strong, .audio-copy small { display: block; }
-.audio-copy strong { font-size: 12px; }
-.audio-copy small { color: #a38a62; font-size: 9px; margin-top: 3px; }
-.audio-button { border: 0; cursor: pointer; }
+.player-card {
+  min-height: 72px;
+  border-radius: 18px;
+  padding: 10px 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  gap: 12px;
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.player-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6f5738;
+}
+
+.player-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.player-copy strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.player-copy small {
+  display: block;
+  color: #a38a62;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.player-card .icon-button {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+}
 .audio-warning { margin: 10px 0; display: inline-flex; gap: 6px; align-items: center; color: #9d6c29; font-size: 11px; }
 .quiet-button { margin: 16px auto 0; display: block; border: 0; background: transparent; color: #9e8157; font-size: 12px; text-decoration: underline; }
 .walk-footer-note { margin-top: 17px; display: inline-flex; gap: 6px; align-items: center; color: #a18a68; font-size: 10px; }
