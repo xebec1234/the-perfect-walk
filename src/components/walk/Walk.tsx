@@ -121,9 +121,11 @@ export function Walk() {
         </div>
       </div>
 
-      {!isEmbodied && walk.guidance?.intro && (
+      {!isEmbodied && (walk.guidance?.intro || walk.guidance?.anchor) && (
         <section className="walk-guidance" aria-live="polite">
-          <p className="walk-guidance-intro">{walk.guidance.intro}</p>
+          {walk.guidance.intro && (
+            <p className="walk-guidance-intro">{walk.guidance.intro}</p>
+          )}
 
           {walk.guidance.anchor && (
             <p className="walk-prompt">{walk.guidance.anchor}</p>
@@ -149,7 +151,7 @@ export function Walk() {
                    * guidance level when the user asks
                    * for more support.
                    */
-                  walk.setGuidancePreference(walk.availableGuidanceModes[0]);
+                  walk.setGuidancePreference(walk.defaultGuidanceMode);
                 } else {
                   /*
                    * Return to the user's normal

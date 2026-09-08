@@ -59,7 +59,7 @@ export function useWalk(
    *
    * Remove the override before production.
    */
-  const testTotalCompleted = 30;
+  const testTotalCompleted = 0;
 
   const totalCompleted =
     process.env.NODE_ENV === "development"

@@ -14,7 +14,7 @@ export const STAGES: Record<StageId, Stage> = {
     number: 1,
     title: "Opening Your Heart",
     subtitle: "Begin gently",
-    musicSrc: "/audio/music/opening-heart.wav",
+    musicSrc: "/audio/music/opening-heart.mp3",
     position: "first",
 
     guidance: {
@@ -52,7 +52,7 @@ export const STAGES: Record<StageId, Stage> = {
     number: 2,
     title: "Feeling Your Power",
     subtitle: "Feel what is already here",
-    musicSrc: "/audio/music/feeling-power.wav",
+    musicSrc: "/audio/music/feeling-power.mp3",
     position: "middle",
 
     guidance: {
@@ -90,7 +90,7 @@ export const STAGES: Record<StageId, Stage> = {
     number: 3,
     title: "Letting Go & Total Presence",
     subtitle: "Come back to now",
-    musicSrc: "/audio/music/letting-go.wav",
+    musicSrc: "/audio/music/letting-go.mp3",
     position: "middle",
 
     guidance: {
@@ -128,7 +128,7 @@ export const STAGES: Record<StageId, Stage> = {
     number: 4,
     title: "Connecting with Higher Power",
     subtitle: "Make room for what you believe",
-    musicSrc: "/audio/music/higher-power.wav",
+    musicSrc: "/audio/music/higher-power.mp3",
     position: "middle",
 
     guidance: {
@@ -166,7 +166,7 @@ export const STAGES: Record<StageId, Stage> = {
     number: 5,
     title: "Celebrate & Raise Your Vibration",
     subtitle: "Finish in celebration",
-    musicSrc: "/audio/music/celebrate.wav",
+    musicSrc: "/audio/music/celebrate.mp3",
     position: "last",
 
     guidance: {

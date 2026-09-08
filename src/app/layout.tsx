@@ -8,8 +8,11 @@ export const metadata: Metadata = {
   description: "A five-part morning walking practice.",
   applicationName: "The Perfect Walk",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icons/icon-512.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icons/icon-512.svg", type: "image/svg+xml" }],
+  },
 };
-
 export const viewport: Viewport = {
   themeColor: "#f7edda",
   width: "device-width",
@@ -17,7 +20,9 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body>

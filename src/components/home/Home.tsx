@@ -10,7 +10,42 @@ import {
 import { Orb } from "@/components/Orb";
 import { useAppState } from "@/hooks/useAppState";
 import { useAudioDurations } from "@/hooks/useAudioDuration";
-import { hasMissedDaysSinceLastPractice } from "@/lib/streak";
+import {
+  hasMissedDaysSinceLastPractice,
+} from "@/lib/streak";
+import { getLocalDateKey } from "@/lib/dates";
+
+/*
+ * ============================================================
+ * DEVELOPMENT TESTING
+ * ============================================================
+ *
+ * Change this number to simulate how long it has been since
+ * the user's last practice.
+ *
+ * 0  = practiced today
+ * 1  = practiced yesterday
+ * 2  = missed 1 day
+ * 5  = missed several days
+ * 30 = returning after a long absence
+ *
+ * IMPORTANT:
+ * This is only used in development.
+ * Production ignores this value completely.
+ */
+const TEST_DAYS_SINCE_LAST_PRACTICE = 3;
+
+function getTestLastCompletedDate() {
+  const date = new Date();
+
+  date.setHours(12, 0, 0, 0);
+  date.setDate(
+    date.getDate() -
+      TEST_DAYS_SINCE_LAST_PRACTICE,
+  );
+
+  return getLocalDateKey(date);
+}
 
 export function Home() {
   const {
@@ -47,18 +82,32 @@ export function Home() {
       : 27;
 
   /*
-   * A return is detected only when:
+   * ============================================================
+   * RETURNING USER DETECTION
+   * ============================================================
    *
-   * - the person has practiced before
-   * - their last practice was neither today nor yesterday
+   * In development we can override the last completed date
+   * so we can test the "Welcome back" experience without
+   * manually changing localStorage.
    *
-   * This is deliberately not called "streak broken"
-   * anywhere in the experience.
+   * Production always uses the real stored date.
+   */
+  const lastCompletedDate =
+    process.env.NODE_ENV === "development"
+      ? getTestLastCompletedDate()
+      : state?.streak.lastCompletedDate ??
+        null;
+
+  /*
+   * We only consider someone "returning" when they have
+   * practiced before and their last practice was neither
+   * today nor yesterday.
+   *
+   * We deliberately do not expose the number of missed days.
    */
   const isReturningAfterMissedDays =
     hasMissedDaysSinceLastPractice(
-      state?.streak
-        .lastCompletedDate ?? null,
+      lastCompletedDate,
     );
 
   return (
@@ -138,22 +187,20 @@ export function Home() {
         </Link>
       </div>
 
-      {!isReturningAfterMissedDays && (
+      {isReturningAfterMissedDays ? (
         <div className="streak-block">
           <div className="streak-number">
-            Day {streak + 1}
+            The practice continues
           </div>
 
           <div className="flame">
             <Flame size={25} />
           </div>
         </div>
-      )}
-
-      {isReturningAfterMissedDays && (
+      ) : (
         <div className="streak-block">
           <div className="streak-number">
-            Begin again
+            Day {streak + 1}
           </div>
 
           <div className="flame">
