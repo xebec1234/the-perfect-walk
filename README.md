@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# The Perfect Walk
 
-## Getting Started
+A five-part morning walking practice built as an installable PWA.
 
-First, run the development server:
+## Live App
 
-```bash
+https://the-perfect-walk.vercel.app/
+
+## Features
+
+- Five-part walking practice
+- Parts 1 and 5 fixed
+- Middle three reorderable
+- Audio-guided stages
+- Progressive guidance: Discover → Remember → Trust → Embody
+- Local daily streak
+- Installable PWA
+- Works without an account or backend
+- Designed for phone-in-pocket use
+
+## How to Run
+
+### Requirements
+
+- Node.js
+- npm
+
+### Install
+
+npm install
+
+### Development
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open the local development URL.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+npm run build
+npm start
 
-## Learn More
+## Audio Approach
 
-To learn more about Next.js, take a look at the following resources:
+The app uses original procedural instrumental placeholder music bundled with the project.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+No Spotify tracks are uploaded or redistributed.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The music files can be replaced later with music supplied or licensed for the final product.
 
-## Deploy on Vercel
+Voice guidance is provided as local audio assets.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Data & Privacy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+There is no backend, account system, or analytics dashboard.
+
+Walk completion and streak information are stored locally on the user's device.
+
+## Design Direction
+
+The central design principle is progressive independence.
+
+The app begins with more guidance and gradually becomes quieter as the practice becomes familiar:
+
+- Discover — 0–6 completed walks
+- Remember — 7–29
+- Trust — 30–59
+- Embody — 60+
+
+Users can request additional guidance when they need it.
+
+## What I'd Build Next With Two More Weeks
+
+1. More deliberate audio/content iteration based on real walks.
+2. Deeper testing across iOS and Android devices, especially background audio and PWA lifecycle behaviour.
+3. Refinement of the progressive-guidance experience based on actual repeated use.
+4. Better onboarding around installing the PWA and beginning the first walk.
+5. Further refinement of the music/voice transitions and accessibility.
+
+## Scope
+
+Intentionally no:
+
+- Accounts
+- Payments
+- Social features
+- Native apps
+- Backend
+- Analytics dashboard
+- AI chatbot
