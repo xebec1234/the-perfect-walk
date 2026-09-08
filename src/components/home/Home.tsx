@@ -10,10 +10,13 @@ import {
 import { Orb } from "@/components/Orb";
 import { useAppState } from "@/hooks/useAppState";
 import { useAudioDurations } from "@/hooks/useAudioDuration";
+import { hasMissedDaysSinceLastPractice } from "@/lib/streak";
 
 export function Home() {
-  const { state, markWalkStarted } =
-    useAppState();
+  const {
+    state,
+    markWalkStarted,
+  } = useAppState();
 
   const streak =
     state?.streak.current ?? 0;
@@ -38,13 +41,32 @@ export function Home() {
 
   const durationMinutes =
     totalDuration > 0
-      ? Math.round(totalDuration / 60)
+      ? Math.round(
+          totalDuration / 60,
+        )
       : 27;
+
+  /*
+   * A return is detected only when:
+   *
+   * - the person has practiced before
+   * - their last practice was neither today nor yesterday
+   *
+   * This is deliberately not called "streak broken"
+   * anywhere in the experience.
+   */
+  const isReturningAfterMissedDays =
+    hasMissedDaysSinceLastPractice(
+      state?.streak
+        .lastCompletedDate ?? null,
+    );
 
   return (
     <main className="screen home-screen">
       <div className="topbar">
-        <span>The Perfect Walk</span>
+        <span>
+          The Perfect Walk
+        </span>
 
         <Link
           href="/flow"
@@ -56,15 +78,31 @@ export function Home() {
       </div>
 
       <section className="home-heading">
-        <p className="eyebrow">
-          Good morning
-        </p>
+        {isReturningAfterMissedDays ? (
+          <>
+            <p className="eyebrow">
+              Welcome back
+            </p>
 
-        <h1>
-          Ready for
-          <br />
-          today&apos;s walk?
-        </h1>
+            <h1>
+              Your practice
+              <br />
+              is still here.
+            </h1>
+          </>
+        ) : (
+          <>
+            <p className="eyebrow">
+              Good morning
+            </p>
+
+            <h1>
+              Ready for
+              <br />
+              today&apos;s walk?
+            </h1>
+          </>
+        )}
       </section>
 
       <div className="orb-stage">
@@ -75,7 +113,9 @@ export function Home() {
         <Link
           href="/walk"
           className="primary-card"
-          onClick={() => markWalkStarted()}
+          onClick={() =>
+            markWalkStarted()
+          }
         >
           <span>
             <strong>
@@ -98,15 +138,29 @@ export function Home() {
         </Link>
       </div>
 
-      <div className="streak-block">
-        <div className="streak-number">
-          Day {streak + 1}
-        </div>
+      {!isReturningAfterMissedDays && (
+        <div className="streak-block">
+          <div className="streak-number">
+            Day {streak + 1}
+          </div>
 
-        <div className="flame">
-          <Flame size={25} />
+          <div className="flame">
+            <Flame size={25} />
+          </div>
         </div>
-      </div>
+      )}
+
+      {isReturningAfterMissedDays && (
+        <div className="streak-block">
+          <div className="streak-number">
+            Begin again
+          </div>
+
+          <div className="flame">
+            <Flame size={25} />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
