@@ -123,9 +123,21 @@ h1 {
   background: linear-gradient(145deg, #ffd56b, #d58b0b); color: #5b3a0e;
   box-shadow: 0 7px 13px rgba(198, 133, 13, .2);
 }
-.streak-block { text-align: center; padding-top: 22px; }
+.streak-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-top: 22px; 
+}
 .streak-number { font-family: Georgia, serif; font-size: 18px; font-weight: 700; }
-.flame { margin-top: 7px; color: #f0ad2e; }
+.flame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f0ad2e;
+}
 
 .simple-header {
   width: 100%;
