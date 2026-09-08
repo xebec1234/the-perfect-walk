@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowDown,
@@ -20,18 +21,21 @@ export function Flow() {
   // Only the middle three are allowed to change position.
   const savedOrder = state?.selectedOrder;
 
-  const order: StageId[] =
-    savedOrder?.length === DEFAULT_ORDER.length
-      ? [
-          DEFAULT_ORDER[0],
-          ...(savedOrder.filter(
-            (id) =>
-              id !== DEFAULT_ORDER[0] &&
-              id !== DEFAULT_ORDER[DEFAULT_ORDER.length - 1],
-          ) as StageId[]),
-          DEFAULT_ORDER[DEFAULT_ORDER.length - 1],
-        ]
-      : DEFAULT_ORDER;
+  const order = useMemo<StageId[]>(() => {
+    if (savedOrder?.length === DEFAULT_ORDER.length) {
+      return [
+        DEFAULT_ORDER[0],
+        ...(savedOrder.filter(
+          (id) =>
+            id !== DEFAULT_ORDER[0] &&
+            id !== DEFAULT_ORDER[DEFAULT_ORDER.length - 1],
+        ) as StageId[]),
+        DEFAULT_ORDER[DEFAULT_ORDER.length - 1],
+      ];
+    }
+
+    return DEFAULT_ORDER;
+  }, [savedOrder]);
 
   const move = (index: number, direction: "up" | "down") => {
     // Only indexes 1, 2 and 3 can move.
@@ -102,7 +106,7 @@ export function Flow() {
               </div>
 
               <div className="stage-copy">
-                <span>{stage.subtitle} hello</span>
+                <span>{stage.subtitle}</span>
 
                 <h2>{stage.title}</h2>
 

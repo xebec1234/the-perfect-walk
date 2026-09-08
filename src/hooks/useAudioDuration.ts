@@ -6,6 +6,15 @@ import { getGuidanceMode } from "@/lib/guidance";
 import type { GuidanceMode, StageId } from "@/types/stage";
 
 function loadAudioDuration(src: string): Promise<number> {
+
+  const durationCache = new Map<string, number>();
+  
+  const cached = durationCache.get(src);
+
+  if (cached !== undefined) {
+    return Promise.resolve(cached);
+  }
+
   return new Promise((resolve) => {
     const audio = new Audio();
 
@@ -17,7 +26,12 @@ function loadAudioDuration(src: string): Promise<number> {
     };
 
     const handleLoaded = () => {
-      const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      const duration = Number.isFinite(audio.duration)
+        ? audio.duration
+        : 0;
+
+      durationCache.set(src, duration);
+
       cleanup();
       resolve(duration);
     };
@@ -29,6 +43,7 @@ function loadAudioDuration(src: string): Promise<number> {
 
     audio.addEventListener("loadedmetadata", handleLoaded);
     audio.addEventListener("error", handleError);
+
     audio.src = src;
     audio.load();
   });
